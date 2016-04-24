@@ -503,7 +503,7 @@ skeleton newGA
             FILE * pFile;
 			pFile = fopen ("output_intinerario.csv", "w");
 			for (int i = 0; i < pbm.dimension(); i++){
-				fprintf (pFile, "Desde %i -> hasta: %i\n",i+1,solver.best_solution_trial().var(i));
+				fprintf (pFile, "Desde %i -> hasta: %i\n", i, solver.best_solution_trial().var(i));
 			}
 			fprintf (pFile, "Suma total intinerario, %d\n", _mejor_precio_intinerario);
 			fclose (pFile);
