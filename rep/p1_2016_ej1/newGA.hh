@@ -63,6 +63,7 @@ skeleton newGA
 		Direction direction () const;
 
 		int dimension() const;
+        int getMaxPais() const;
         int ** getPrecioViajes() const;
         float * getTasaTemporadas() const;
         const char* getfield(char* line, int num);
@@ -70,6 +71,7 @@ skeleton newGA
 	private:
 
 		int _dimension;
+		int _maxPais;
 		int ** _precio_viaje;
 		float * _tasa_temporada;
   };

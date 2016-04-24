@@ -8,7 +8,7 @@ skeleton newGA
 
 	// Problem ---------------------------------------------------------------
 
-	Problem::Problem ():_dimension(0),_precio_viaje(NULL),_tasa_temporada(NULL)
+	Problem::Problem ():_dimension(0),_maxPais(0),_precio_viaje(NULL),_tasa_temporada(NULL)
 	{}
 
 	ostream& operator<< (ostream& os, const Problem& pbm)
@@ -17,10 +17,10 @@ skeleton newGA
 		   << endl;
 
 		//Imprimo el arreglo con los precios de los viajes
-        os<<"Matriz con precios de viajes: " << endl << endl;
-        for (int i = 0; i < pbm._dimension; i++){
+        os << "Matriz con precios de viajes: " << endl << endl;
+        for (int i = 0; i < pbm._maxPais; i++){
             os << i << " -> ";
-            for (int j = 0; j < pbm._dimension; j++){
+            for (int j = 0; j < pbm._maxPais; j++){
                 os << pbm._precio_viaje[i][j] << ", ";
             }
             os << endl;
@@ -45,12 +45,13 @@ skeleton newGA
 
 		cout << "Init problem 1";
 
-		pbm._dimension = 5; // Hardcoded para ej1
+		pbm._dimension = 4; // Hardcoded para ej1
+		pbm._maxPais = 5;
 
         //Pido memoria para almacenar los precios de los viajes
-		pbm._precio_viaje = new int* [pbm._dimension];
-		for (i = 0; i < pbm._dimension; i++) {
-		    pbm._precio_viaje[i] = new int [pbm._dimension];
+		pbm._precio_viaje = new int* [pbm._maxPais];
+		for (i = 0; i < pbm._maxPais; i++) {
+		    pbm._precio_viaje[i] = new int [pbm._maxPais];
 		}
 
         //Cargo el archivo con los precios de los viajes
@@ -58,8 +59,8 @@ skeleton newGA
 
         char* tmp;
         char line[1024];
-		for (i = 0; (i < pbm._dimension && fgets(line, 1024, stream)); i++){
-            for (j = 0; j < pbm._dimension; j++) {
+		for (i = 0; (i < pbm._maxPais && fgets(line, 1024, stream)); i++){
+            for (j = 0; j < pbm._maxPais; j++) {
                 tmp = strdup(line);
                 const char * precio = pbm.getfield(tmp, j + 1);
                 pbm._precio_viaje[i][j] = atoi(precio);
@@ -89,6 +90,10 @@ skeleton newGA
             }
         }
         return NULL;
+    }
+
+    int Problem::getMaxPais() const{
+        return _maxPais;
     }
 
     int ** Problem::getPrecioViajes() const{
@@ -122,9 +127,8 @@ skeleton newGA
 	}
 
 	Problem::~Problem(){
-	    cout << 'Destroying problem';
 	    //Libero la memoria pedida para almacenar los precios de los viajes
-        for (int i=0; i < _dimension; i++) {
+        for (int i=0; i < _maxPais; i++) {
             delete[] _precio_viaje[i];
         }
         delete[] _precio_viaje;
@@ -195,22 +199,24 @@ skeleton newGA
 
 	void Solution::initialize()
 	{
-		for (int i = 0; i < _pbm.dimension()-1; i++) {
-            _var[i]=rand_int(0,3);
+		for (int i = 0; i < _pbm.dimension(); i++) {
+            _var[i] = i + 1;
 		}
 	}
 
 	double Solution::fitness ()
 	{
         int fitness = 0.0;
-        int fromCity, toCity;
+        int fromCity, toCity, viajeFitness;
 
         fromCity = 0;
-		for (int i=0; i < _var.size(); i++){
+		for (int i=0; i < pbm().dimension(); i++){
 		    toCity = _var[i];
 
+            viajeFitness = (toCity == fromCity) ? 9999 : pbm().getPrecioViajes()[fromCity][toCity];
+
 		    // Acumulo fitness
-            fitness += pbm().getPrecioViajes()[fromCity][toCity] * pbm().getTasaTemporadas()[i];
+            fitness += viajeFitness * pbm().getTasaTemporadas()[i];
 
             // La ciudad fromCity de la proxima iteracion es la toCity de la actual iteracion
             fromCity = toCity;
@@ -360,21 +366,21 @@ skeleton newGA
 	void Crossover::cross(Solution& sol1,Solution& sol2) const // dadas dos soluciones de la poblacion, las cruza
 	{
 	    //Usamos cruzamiento de dos puntos (2PX)
-		int i=0;
-		Rarray<int> aux(sol1.pbm().dimension());
-		aux=sol2.array_var();
+        int i=0;
+        Rarray<int> aux(sol1.pbm().dimension());
+        aux=sol2.array_var();
 
-		int limit=rand_int((sol1.pbm().dimension()/2)+1,sol1.pbm().dimension()-1);
-		int limit2=rand_int(0,limit-1);
+        int limit=rand_int((sol1.pbm().dimension()/2)+1,sol1.pbm().dimension()-1);
+        int limit2=rand_int(0,limit-1);
 
-		for (i=0;i<limit2;i++)
-			sol2.var(i)=sol1.var(i);
-		for (i=0;i<limit2;i++)
-			sol1.var(i)=aux[i];
-		for (i=limit;i<sol1.pbm().dimension();i++)
-			sol2.var(i)=sol1.var(i);
-		for (i=limit;i<sol1.pbm().dimension();i++)
-			sol1.var(i)=aux[i];
+        for (i=0;i<limit2;i++)
+            sol2.var(i)=sol1.var(i);
+        for (i=0;i<limit2;i++)
+            sol1.var(i)=aux[i];
+        for (i=limit;i<sol1.pbm().dimension();i++)
+            sol2.var(i)=sol1.var(i);
+        for (i=limit;i<sol1.pbm().dimension();i++)
+            sol1.var(i)=aux[i];
 	}
 
 	void Crossover::execute(Rarray<Solution*>& sols) const
@@ -428,16 +434,18 @@ skeleton newGA
 	    // Para almacenar valor anterior a mutacion y poder aplicar 'Exchange mutation'
 	    int oldValue;
 
-		for (int i = 0; i < sol.pbm().dimension() - 1; i++) {
+		for (int i = 0; i < sol.pbm().dimension(); i++) {
             if (rand01() <= probability[1]) {
                 // Guardo valor anterior
                 oldValue = sol.var(i);
                 //La mutacion intercambia un gen aleatoriamente con probabilidad uniforme
-                sol.var(i) = rand_int(0,3);
-                for (int j = 0; j < sol.pbm().dimension() - 1; j++) {
-                    if ((j != i) && (sol.var(j) == sol.var(i))) {
-                        sol.var(j) = oldValue;
-                        break;
+                sol.var(i) = rand_int(1,4);
+                if (oldValue != sol.var(i)) {
+                    for (int j = 0; j < sol.pbm().dimension(); j++) {
+                        if ((j != i) && (sol.var(j) == sol.var(i))) {
+                            sol.var(j) = oldValue;
+                            break;
+                        }
                     }
                 }
             }
@@ -494,8 +502,8 @@ skeleton newGA
 	        _mejor_precio_intinerario = nuevo_mejor_precio_intinerario;
             FILE * pFile;
 			pFile = fopen ("output_intinerario.csv", "w");
-			for (int i = 0; i<pbm.dimension()-1; i++){
-				fprintf (pFile, "Desde %i -> precio: %i\n",i+1,solver.best_solution_trial().var(i));
+			for (int i = 0; i < pbm.dimension(); i++){
+				fprintf (pFile, "Desde %i -> hasta: %i\n",i+1,solver.best_solution_trial().var(i));
 			}
 			fprintf (pFile, "Suma total intinerario, %d\n", _mejor_precio_intinerario);
 			fclose (pFile);
