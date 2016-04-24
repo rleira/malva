@@ -8,26 +8,96 @@ skeleton newGA
 
 	// Problem ---------------------------------------------------------------
 
-	Problem::Problem ():_dimension(0)
+	Problem::Problem ():_dimension(0),_precio_viaje(NULL),_tasa_temporada(NULL)
 	{}
 
 	ostream& operator<< (ostream& os, const Problem& pbm)
 	{
 		os << endl << endl << "Number of Variables " << pbm._dimension
 		   << endl;
-		return os;
+
+		//Imprimo el arreglo con los precios de los viajes
+        os<<"Matriz con precios de viajes: " << endl << endl;
+        for (int i = 0; i < pbm._dimension; i++){
+            os << i << " -> ";
+            for (int j = 0; j < pbm._dimension; j++){
+                os << pbm._precio_viaje[i][j] << ", ";
+            }
+            os << endl;
+        }
+        os << endl;
+        return os;
 	}
 
 	istream& operator>> (istream& is, Problem& pbm)
 	{
 		char buffer[MAX_BUFFER];
-		int i;
+		int i, j;
 
-		is.getline(buffer,MAX_BUFFER,'\n');
-		sscanf(buffer,"%d",&pbm._dimension);
+        cout << "Init problem 0";
+
+		// Inicializo tasa por temporada baja, media y alta
+		pbm._tasa_temporada = new float [4];
+		pbm._tasa_temporada[0] = 1.0f;
+		pbm._tasa_temporada[1] = 1.1f;
+		pbm._tasa_temporada[2] = 1.3f;
+		pbm._tasa_temporada[3] = 1.3f;
+
+		cout << "Init problem 1";
+
+		pbm._dimension = 5; // Hardcoded para ej1
+
+        //Pido memoria para almacenar los precios de los viajes
+		pbm._precio_viaje = new int* [pbm._dimension];
+		for (i = 0; i < pbm._dimension; i++) {
+		    pbm._precio_viaje[i] = new int [pbm._dimension];
+		}
+
+        //Cargo el archivo con los precios de los viajes
+	    FILE* stream = fopen("input.txt", "r");
+
+        char* tmp;
+        char line[1024];
+		for (i = 0; (i < pbm._dimension && fgets(line, 1024, stream)); i++){
+            for (j = 0; j < pbm._dimension; j++) {
+                tmp = strdup(line);
+                const char * precio = pbm.getfield(tmp, j + 1);
+                pbm._precio_viaje[i][j] = atoi(precio);
+                free(tmp);
+            }
+        }
+
+        cout << pbm;
 
 		return is;
 	}
+
+    //Funcion para leer el con la matrix, lee una linea!
+    /*
+        Ejemplo:
+        tmp = strdup(line);
+        const char * item = pbm.getfield(tmp,1);
+        int item_int=atoi(item);
+        free(tmp);
+    */
+    const char* Problem::getfield(char* line, int num)
+    {
+        const char* tok;
+        for (tok = strtok(line, " \t"); tok && *tok; tok = strtok(NULL, " \t\n")){
+            if (!--num){
+                return tok;
+            }
+        }
+        return NULL;
+    }
+
+    int ** Problem::getPrecioViajes() const{
+        return _precio_viaje;
+    }
+
+    float * Problem::getTasaTemporadas() const{
+        return _tasa_temporada;
+    }
 
 	bool Problem::operator== (const Problem& pbm) const
 	{
@@ -42,8 +112,8 @@ skeleton newGA
 
 	Direction Problem::direction() const
 	{
-		return maximize;
-		//return minimize;
+		//return maximize;
+		return minimize;
 	}
 
 	int Problem::dimension() const
@@ -51,8 +121,14 @@ skeleton newGA
 		return _dimension;
 	}
 
-	Problem::~Problem()
-	{
+	Problem::~Problem(){
+	    cout << 'Destroying problem';
+	    //Libero la memoria pedida para almacenar los precios de los viajes
+        for (int i=0; i < _dimension; i++) {
+            delete[] _precio_viaje[i];
+        }
+        delete[] _precio_viaje;
+        delete[] _tasa_temporada;
 	}
 
 	// Solution --------------------------------------------------------------
@@ -119,16 +195,26 @@ skeleton newGA
 
 	void Solution::initialize()
 	{
-		for (int i=0;i<_pbm.dimension();i++)
-			_var[i]=rand_int(0,1);
+		for (int i = 0; i < _pbm.dimension()-1; i++) {
+            _var[i]=rand_int(0,3);
+		}
 	}
 
 	double Solution::fitness ()
 	{
-        double fitness = 0.0;
+        int fitness = 0.0;
+        int fromCity, toCity;
 
-		for (int i=0;i<_var.size();i++)
-			fitness += _var[i];
+        fromCity = 0;
+		for (int i=0; i < _var.size(); i++){
+		    toCity = _var[i];
+
+		    // Acumulo fitness
+            fitness += pbm().getPrecioViajes()[fromCity][toCity] * pbm().getTasaTemporadas()[i];
+
+            // La ciudad fromCity de la proxima iteracion es la toCity de la actual iteracion
+            fromCity = toCity;
+		}
 
 		return fitness;
 	}
@@ -273,6 +359,7 @@ skeleton newGA
 
 	void Crossover::cross(Solution& sol1,Solution& sol2) const // dadas dos soluciones de la poblacion, las cruza
 	{
+	    //Usamos cruzamiento de dos puntos (2PX)
 		int i=0;
 		Rarray<int> aux(sol1.pbm().dimension());
 		aux=sol2.array_var();
@@ -334,16 +421,27 @@ skeleton newGA
 		probability = new float[2];
 	}
 
-	void Mutation::mutate(Solution& sol) const
-	{
-		for (int i=0;i<sol.pbm().dimension();i++)
-		{
-			if (rand01()<=probability[1])
-			{
-				if (sol.var(i)==1) sol.var(i)=0;
-			 	else sol.var(i)=1;
-			}
-		}
+	void Mutation::mutate(Solution& sol) const {
+
+	    // Aqui usamos EXCHANGE MUTATION
+
+	    // Para almacenar valor anterior a mutacion y poder aplicar 'Exchange mutation'
+	    int oldValue;
+
+		for (int i = 0; i < sol.pbm().dimension() - 1; i++) {
+            if (rand01() <= probability[1]) {
+                // Guardo valor anterior
+                oldValue = sol.var(i);
+                //La mutacion intercambia un gen aleatoriamente con probabilidad uniforme
+                sol.var(i) = rand_int(0,3);
+                for (int j = 0; j < sol.pbm().dimension() - 1; j++) {
+                    if ((j != i) && (sol.var(j) == sol.var(i))) {
+                        sol.var(j) = oldValue;
+                        break;
+                    }
+                }
+            }
+        }
 	}
 
 	void Mutation::execute(Rarray<Solution*>& sols) const
@@ -386,12 +484,24 @@ skeleton newGA
 
 // StopCondition_1 -------------------------------------------------------------------------------------
 
-	StopCondition_1::StopCondition_1():StopCondition()
+	StopCondition_1::StopCondition_1():StopCondition(),_mejor_precio_intinerario(2147483646)
 	{}
 
 	bool StopCondition_1::EvaluateCondition(const Problem& pbm,const Solver& solver,const SetUpParams& setup)
 	{
-		return ((int)solver.best_cost_trial() == pbm.dimension());
+	    int nuevo_mejor_precio_intinerario = solver.best_cost_trial();
+	    if (nuevo_mejor_precio_intinerario < _mejor_precio_intinerario) {
+	        _mejor_precio_intinerario = nuevo_mejor_precio_intinerario;
+            FILE * pFile;
+			pFile = fopen ("output_intinerario.csv", "w");
+			for (int i = 0; i<pbm.dimension()-1; i++){
+				fprintf (pFile, "Desde %i -> precio: %i\n",i+1,solver.best_solution_trial().var(i));
+			}
+			fprintf (pFile, "Suma total intinerario, %d\n", _mejor_precio_intinerario);
+			fclose (pFile);
+	    }
+		return false;
+		//return ((int)solver.best_cost_trial() == pbm.dimension());
 	}
 
 	StopCondition_1::~StopCondition_1()

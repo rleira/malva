@@ -1,7 +1,7 @@
 /*********************************************************************************************************
 ***																									   ***
 ***									new Genetic Algorithm Skeleton v1.5 							   ***
-***								  Developed by: Gabriel Jesús Luque Polo							   ***
+***								  Developed by: Gabriel Jesï¿½s Luque Polo							   ***
 ***										Last Update:  27-01-2003									   ***
 ***																									   ***
 *** tabular size = 4																				   ***
@@ -13,9 +13,9 @@
 
 skeleton newGA
 {
-// Si se definen más de 5 nuevos operadores por parte del usuario, se debe cambiar esta constante.
+// Si se definen mï¿½s de 5 nuevos operadores por parte del usuario, se debe cambiar esta constante.
 #define MAX_OP_USER 5
-// Si se algún operador tiene más de 5 parámetros se debe modificar esta variable
+// Si se algï¿½n operador tiene mï¿½s de 5 parï¿½metros se debe modificar esta variable
 #define MAX_PROB_PER_OP 5
 
   provides class SetUpParams;
@@ -63,10 +63,15 @@ skeleton newGA
 		Direction direction () const;
 
 		int dimension() const;
+        int ** getPrecioViajes() const;
+        float * getTasaTemporadas() const;
+        const char* getfield(char* line, int num);
 
 	private:
 
 		int _dimension;
+		int ** _precio_viaje;
+		float * _tasa_temporada;
   };
 
 //Solution ----------------------------------------------------------------------------
@@ -211,6 +216,9 @@ skeleton newGA
 		StopCondition_1();
 		virtual bool EvaluateCondition(const Problem& pbm,const Solver& solver,const SetUpParams& setup);
 		~StopCondition_1();
+
+    private:
+        int _mejor_precio_intinerario;
   };
 // SetUpParams -------------------------------------------------------------------------------
 
@@ -333,7 +341,7 @@ skeleton newGA
 		unsigned int _upper_cost,_lower_cost; // lower and upper fitness of individuals in population
 		unsigned long _evaluations;
 		double _average_cost;
-		
+
 		inline void Evaluate(Solution* sols,struct individual &_f);
 
 	public:
@@ -380,7 +388,7 @@ skeleton newGA
 		Solution& worst_solution() const;
 		double average_cost() const;
 		double standard_deviation() const;
-  };	
+  };
 
 // Inter_Operator ( abstract )-----------------------------------------------------------
 
@@ -396,7 +404,7 @@ skeleton newGA
 
 		unsigned int _number_operator;
 	   	const Direction direction;
-	
+
 	public:
 		Inter_Operator(const unsigned int _number_op, const Direction dir);
 	   	virtual ~Inter_Operator();
@@ -429,18 +437,18 @@ skeleton newGA
   provides class Selection
   {
 	protected:
-		unsigned int _number_selection;	
+		unsigned int _number_selection;
 	  	const Direction direction;
 
 	public:
 
 		Selection(const Direction dir);
  	  	Selection(const unsigned int _number_sel, const Direction dir);
-		virtual ~Selection();		
+		virtual ~Selection();
 
 		friend ostream& operator<< (ostream& os, const Selection& sel);
 
-       	virtual void prepare(Rarray<struct individual>& fitness_values,const bool remplace); // const;	
+       	virtual void prepare(Rarray<struct individual>& fitness_values,const bool remplace); // const;
 	  	virtual struct individual select_one(const Rarray<Solution*>& to_select_1,const Rarray<Solution*>& to_select_2,const Rarray<struct individual>& fitness_values,const unsigned int dummy,const bool remplace) const;
 	  	unsigned int number_selection() const;
   };
@@ -455,11 +463,11 @@ skeleton newGA
 
 		friend ostream& operator<< (ostream& os, const Selection_Tournament& sel);
 
-		virtual struct individual select_one(const Rarray<Solution*>& to_select_1,const Rarray<Solution*>& to_select_2,const Rarray<struct individual>& fitness_values,const unsigned int tourment_size,const bool remplace) const;	
+		virtual struct individual select_one(const Rarray<Solution*>& to_select_1,const Rarray<Solution*>& to_select_2,const Rarray<struct individual>& fitness_values,const unsigned int tourment_size,const bool remplace) const;
   };
 
 // Selection_Roulette_Wheel  ---------------------------------------------------------------------------------
-  
+
   provides class Selection_Roulette_Wheel: public Selection
   {
 	public:
@@ -494,7 +502,7 @@ skeleton newGA
   provides class Selection_Best: public Selection_Rank
   {
 	private:
-		mutable unsigned int selection_best_position;		
+		mutable unsigned int selection_best_position;
 
 	public:
 		Selection_Best(const Direction);
@@ -511,7 +519,7 @@ skeleton newGA
   provides class Selection_Worst: public Selection_Rank
   {
 	private:
-		mutable unsigned int selection_worst_position;		
+		mutable unsigned int selection_worst_position;
 
 	public:
 		Selection_Worst(const Direction);
@@ -653,8 +661,8 @@ skeleton newGA
 
 		unsigned int current_trial() const;
 		unsigned long current_iteration() const;
-		unsigned long current_evaluations() const;		
-		Solution current_best_solution() const;		
+		unsigned long current_evaluations() const;
+		Solution current_best_solution() const;
 		double current_best_cost() const;
 		double current_worst_cost() const;
 		double current_average_cost() const;
@@ -770,7 +778,7 @@ skeleton newGA
 		float _time_best_found_in_trial;
 		unsigned long _iteration_best_found_in_trial;
 		unsigned long _evaluations_best_found_in_trial;
-	  
+
 	  	// Termination phase //
 	  	bool final_phase;
 	  	unsigned long acum_iterations;
@@ -849,7 +857,7 @@ skeleton newGA
 		void check_for_refresh_global_state();
 		void reset();
   };
- 
+
 }
 
 #endif
