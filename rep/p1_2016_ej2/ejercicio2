@@ -1,0 +1,11 @@
+#!/bin/bash
+# chmod +x ./ejercicio2
+
+# Build if build is not available
+make all
+
+# Save parameter files to file containing files :)
+printf "\"$1\"\n\"$2\"" > files.txt
+
+# Run malva with right parameters files
+./MainSeq newGA.cfg files.txt res/sol.txt
