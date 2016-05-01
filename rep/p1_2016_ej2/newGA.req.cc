@@ -311,7 +311,7 @@ skeleton newGA
             pbm().getTicketPrice()[fromCity][toCity];
 
 		    // Acum fitness
-            fitness += tripFitness * pbm().getHighSeasonFactors()[i];
+            fitness += roundf(tripFitness * pbm().getHighSeasonFactors()[i]);
 
             // The city fromCity for next iteration is the current toCity
             fromCity = toCity;
@@ -460,22 +460,48 @@ skeleton newGA
 
 	void Crossover::cross(Solution& sol1,Solution& sol2) const
 	{
-	    // We use two point crossing (2PX)
-        int i=0;
+	    // We use Partially Mapped Crossover (PMX)
+        int i = 0;
+        int j = 0;
+        int swapIndex;
         Rarray<int> aux(sol1.pbm().dimension());
-        aux=sol2.array_var();
+        aux = sol2.array_var();
 
-        int limit=rand_int((sol1.pbm().dimension()/2)+1,sol1.pbm().dimension()-1);
-        int limit2=rand_int(0,limit-1);
+        int limit = rand_int(0, sol1.pbm().dimension() - 1);
+        int limit2 = rand_int(0, sol1.pbm().dimension() - 1);
 
-        for (i=0;i<limit2;i++)
-            sol2.var(i)=sol1.var(i);
-        for (i=0;i<limit2;i++)
-            sol1.var(i)=aux[i];
-        for (i=limit;i<sol1.pbm().dimension();i++)
-            sol2.var(i)=sol1.var(i);
-        for (i=limit;i<sol1.pbm().dimension();i++)
-            sol1.var(i)=aux[i];
+        if (limit != limit2) {
+            // Make limit < limit2 to ease operations
+            if (limit > limit2) {
+                swapIndex = limit;
+                limit = limit2;
+                limit2 = swapIndex;
+            }
+
+            // Exchange middle!
+            for (i = limit; i <= limit2; i++){
+                sol2.var(i) = sol1.var(i);
+                sol1.var(i) = aux[i];
+            }
+
+            // Fix permutation using sol1 and sol2 mapping
+            for (i = 0; i < sol1.pbm().dimension(); i++){
+                if ((i < limit) || (limit2 < i)) {
+                    // Fix sol1
+                    for (j = limit; j <= limit2; j++) {
+                        if (sol1.var(i) == sol1.var(j)) {
+                            sol1.var(i) = sol2.var(j);
+                        }
+                    }
+                    // Fix sol2
+                    for (j = limit; j <= limit2; j++) {
+                        if (sol2.var(i) == sol2.var(j)) {
+                            sol2.var(i) = sol1.var(j);
+                        }
+                    }
+                }
+            }
+        }
 	}
 
 	void Crossover::execute(Rarray<Solution*>& sols) const
