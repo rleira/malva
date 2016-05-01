@@ -8,7 +8,7 @@ skeleton newGA
 
 	// Problem ---------------------------------------------------------------
 
-	Problem::Problem ():_dimension(0),_countryCount(0),_ticketPrice(NULL),_highSeasonFactor(NULL),_matrixFileURI("NULL\0"),_seasonFactorsFileURI("NULL\0")
+	Problem::Problem ():_dimension(0),_countryCount(0),_ticketPrice(NULL),_highSeasonFactor(NULL),_seasonLimits(NULL),_matrixFileURI("NULL\0"),_seasonFactorsFileURI("NULL\0"),_maxTicketPrice(0-USHRT_MAX)
 	{}
 
 	ostream& operator<< (ostream& os, const Problem& pbm)
@@ -27,11 +27,12 @@ skeleton newGA
         }
         os << endl;
 
-        // Print array with travel prices
-        os << "Season factors with ticket prices: " << endl;
-        os << "Low: " << pbm._highSeasonFactor[0] << endl;
-        os << "Medium: " << pbm._highSeasonFactor[1] << endl;
-        os << "High: " << pbm._highSeasonFactor[2] << endl;
+        // Print array with season factors for each slot
+        os << "Matrix with season factors: " << endl << endl;
+        for (int i = 0; i < pbm._dimension; i++){
+            os << i << " -> " << pbm._highSeasonFactor[i] << endl;
+        }
+        os << endl;
 
         os << endl;
         return os;
@@ -44,13 +45,6 @@ skeleton newGA
 		char* tmp;
         char line[1024];
 		int i, j;
-
-		// Init high season factors for low, medium and high seasons
-		pbm._highSeasonFactor = new float [4];
-		pbm._highSeasonFactor[0] = 1.0f;
-		pbm._highSeasonFactor[1] = 1.1f;
-		pbm._highSeasonFactor[2] = 1.3f;
-		pbm._highSeasonFactor[3] = 1.3f;
 
 		strcpy(paramsFile, "files.txt");
 
@@ -75,7 +69,7 @@ skeleton newGA
         // LOAD SEASON LIMITS
         // Open season limits file
         FILE* seasonLimitsFileStream = fopen(pbm._seasonFactorsFileURI, "r");
-
+        pbm._seasonLimits = new int [6];
         for (int season = 0; (season <= 2 && fgets(line, 1024, seasonLimitsFileStream)); season++) {
 
             // Get inf limit for the current season
@@ -96,6 +90,29 @@ skeleton newGA
 		pbm._dimension = pbm._seasonLimits[5] / 5;
 		pbm._countryCount = pbm._dimension + 1;
 
+
+		// Init high season factors for low, medium and high seasons
+        pbm._highSeasonFactor = new float [pbm._dimension];
+
+        // Low
+        for (i = 0; i < pbm._dimension; i++) {
+            int start = (i * 5) + 1;
+            // Low
+            if (pbm._seasonLimits[0] <= start && start <= pbm._seasonLimits[1]) {
+                pbm._highSeasonFactor[i] = 1.0f;
+            }
+            // Medium
+            else if (pbm._seasonLimits[2] <= start && start <= pbm._seasonLimits[3]) {
+                pbm._highSeasonFactor[i] = 1.1f;
+            }
+            // High
+            else {
+                pbm._highSeasonFactor[i] = 1.3f;
+            }
+
+            cout << "Factor dia "<< start << "->" << pbm._highSeasonFactor[i] << endl;
+        }
+
         // LOAD TICKETS PRICE MATRIX
         FILE* ticketMatrixFileStream = fopen(pbm._matrixFileURI, "r");
         // Request memory to store ticket price matrix
@@ -111,6 +128,11 @@ skeleton newGA
                 tmp = strdup(line);
                 const char * price = pbm.getfield(tmp, j + 1);
                 pbm._ticketPrice[i][j] = atoi(price);
+
+                // Update max ticket price
+                if (pbm._ticketPrice[i][j] > pbm._maxTicketPrice) {
+                    pbm._maxTicketPrice = pbm._ticketPrice[i][j];
+                }
 
                 // Free memory
                 free(tmp);
@@ -165,6 +187,14 @@ skeleton newGA
         return _highSeasonFactor;
     }
 
+    int * Problem::getSeasonLimits() const{
+        return _seasonLimits;
+    }
+
+    int Problem::getMaxTicketPrice() const{
+        return _maxTicketPrice;
+    }
+
 	bool Problem::operator== (const Problem& pbm) const
 	{
 		if (_dimension!=pbm.dimension()) return false;
@@ -194,6 +224,7 @@ skeleton newGA
         }
         delete[] _ticketPrice;
         delete[] _highSeasonFactor;
+        delete[] _seasonLimits;
 	}
 
 	// Solution --------------------------------------------------------------
@@ -268,18 +299,21 @@ skeleton newGA
 	double Solution::fitness ()
 	{
         int fitness = 0.0;
-        int fromCity, toCity, viajeFitness;
+        int fromCity, toCity, tripFitness;
 
         fromCity = 0;
 		for (int i=0; i < pbm().dimension(); i++){
 		    toCity = _var[i];
 
-            viajeFitness = (toCity == fromCity) ? 9999 : pbm().getTicketPrice()[fromCity][toCity];
+            // Penalty barrier for cases where from and to cities are the same or if there is no connection
+            tripFitness = (toCity == fromCity || pbm().getTicketPrice()[fromCity][toCity] == -1) ?
+            (pbm().getMaxTicketPrice() + 1) * 2 :
+            pbm().getTicketPrice()[fromCity][toCity];
 
-		    // Acumulo fitness
-            fitness += viajeFitness * pbm().getHighSeasonFactors()[i];
+		    // Acum fitness
+            fitness += tripFitness * pbm().getHighSeasonFactors()[i];
 
-            // La ciudad fromCity de la proxima iteracion es la toCity de la actual iteracion
+            // The city fromCity for next iteration is the current toCity
             fromCity = toCity;
 		}
 
@@ -424,9 +458,9 @@ skeleton newGA
 		probability = new float[1];
 	}
 
-	void Crossover::cross(Solution& sol1,Solution& sol2) const // dadas dos soluciones de la poblacion, las cruza
+	void Crossover::cross(Solution& sol1,Solution& sol2) const
 	{
-	    //Usamos cruzamiento de dos puntos (2PX)
+	    // We use two point crossing (2PX)
         int i=0;
         Rarray<int> aux(sol1.pbm().dimension());
         aux=sol2.array_var();
@@ -489,27 +523,16 @@ skeleton newGA
 	}
 
 	void Mutation::mutate(Solution& sol) const {
-
-	    // Aqui usamos EXCHANGE MUTATION
-
-	    // Para almacenar valor anterior a mutacion y poder aplicar 'Exchange mutation'
+	    // Here we use EXCHANGE MUTATION
 	    int oldValue;
-
-		for (int i = 0; i < sol.pbm().dimension(); i++) {
-            if (rand01() <= probability[1]) {
-                // Guardo valor anterior
-                oldValue = sol.var(i);
-                //La mutacion intercambia un gen aleatoriamente con probabilidad uniforme
-                sol.var(i) = rand_int(1,4);
-                if (oldValue != sol.var(i)) {
-                    for (int j = 0; j < sol.pbm().dimension(); j++) {
-                        if ((j != i) && (sol.var(j) == sol.var(i))) {
-                            sol.var(j) = oldValue;
-                            break;
-                        }
-                    }
-                }
-            }
+	    int index1 = rand_int(0, sol.pbm().dimension() - 1);
+	    int index2 = rand_int(0, sol.pbm().dimension() - 1);
+        if ((rand01() <= probability[1]) && (index1 != index2)) {
+            // Store previous value
+            oldValue = sol.var(index1);
+            // Swap
+            sol.var(index1) = sol.var(index2);
+            sol.var(index2) = oldValue;
         }
 	}
 

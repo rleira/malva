@@ -66,6 +66,8 @@ skeleton newGA
         int getCountryCount() const;
         int ** getTicketPrice() const;
         float * getHighSeasonFactors() const;
+        int * getSeasonLimits() const;
+        int getMaxTicketPrice() const;
         const char* getfield(char* line, int num);
         const char* getfieldCSV(char* line, int num);
 
@@ -75,9 +77,10 @@ skeleton newGA
 		int _countryCount;
 		int ** _ticketPrice;
 		float * _highSeasonFactor;
-		int _seasonLimits[6];
+		int * _seasonLimits;
 		char _matrixFileURI[256];
 		char _seasonFactorsFileURI[256];
+		int _maxTicketPrice;
   };
 
 //Solution ----------------------------------------------------------------------------
