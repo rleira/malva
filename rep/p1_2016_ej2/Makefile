@@ -21,4 +21,4 @@ WAN:
 	$(RUN) -v  -p4pg pgfileWan MainWan
 
 SEQ:
-	./MainSeq newGA.cfg input.txt res/sol.txt
+	./MainSeq newGA.cfg files.txt res/sol.txt

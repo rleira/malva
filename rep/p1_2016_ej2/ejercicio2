@@ -4,8 +4,8 @@
 # Build if build is not available
 make all
 
-# Save parameter files to file containing files :)
+# Save parameter files to file containing files :) so we can run malva with its makefile
 printf "\"$1\"\n\"$2\"" > files.txt
 
 # Run malva with right parameters files
-./MainSeq newGA.cfg files.txt res/sol.txt
+make SEQ
