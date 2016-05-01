@@ -63,17 +63,21 @@ skeleton newGA
 		Direction direction () const;
 
 		int dimension() const;
-        int getMaxPais() const;
-        int ** getPrecioViajes() const;
-        float * getTasaTemporadas() const;
+        int getCountryCount() const;
+        int ** getTicketPrice() const;
+        float * getHighSeasonFactors() const;
         const char* getfield(char* line, int num);
+        const char* getfieldCSV(char* line, int num);
 
 	private:
 
 		int _dimension;
-		int _maxPais;
-		int ** _precio_viaje;
-		float * _tasa_temporada;
+		int _countryCount;
+		int ** _ticketPrice;
+		float * _highSeasonFactor;
+		int _seasonLimits[6];
+		char _matrixFileURI[256];
+		char _seasonFactorsFileURI[256];
   };
 
 //Solution ----------------------------------------------------------------------------

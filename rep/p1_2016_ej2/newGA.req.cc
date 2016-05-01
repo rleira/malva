@@ -8,7 +8,7 @@ skeleton newGA
 
 	// Problem ---------------------------------------------------------------
 
-	Problem::Problem ():_dimension(0),_maxPais(0),_precio_viaje(NULL),_tasa_temporada(NULL)
+	Problem::Problem ():_dimension(0),_countryCount(0),_ticketPrice(NULL),_highSeasonFactor(NULL),_matrixFileURI("NULL\0"),_seasonFactorsFileURI("NULL\0")
 	{}
 
 	ostream& operator<< (ostream& os, const Problem& pbm)
@@ -16,15 +16,23 @@ skeleton newGA
 		os << endl << endl << "Number of Variables " << pbm._dimension
 		   << endl;
 
-		//Imprimo el arreglo con los precios de los viajes
-        os << "Matriz con precios de viajes: " << endl << endl;
-        for (int i = 0; i < pbm._maxPais; i++){
+		// Print array with travel prices
+        os << "Matrix with ticket prices: " << endl << endl;
+        for (int i = 0; i < pbm._countryCount; i++){
             os << i << " -> ";
-            for (int j = 0; j < pbm._maxPais; j++){
-                os << pbm._precio_viaje[i][j] << ", ";
+            for (int j = 0; j < pbm._countryCount; j++){
+                os << pbm._ticketPrice[i][j] << ", ";
             }
             os << endl;
         }
+        os << endl;
+
+        // Print array with travel prices
+        os << "Season factors with ticket prices: " << endl;
+        os << "Low: " << pbm._highSeasonFactor[0] << endl;
+        os << "Medium: " << pbm._highSeasonFactor[1] << endl;
+        os << "High: " << pbm._highSeasonFactor[2] << endl;
+
         os << endl;
         return os;
 	}
@@ -32,38 +40,79 @@ skeleton newGA
 	istream& operator>> (istream& is, Problem& pbm)
 	{
 		char buffer[MAX_BUFFER];
+		char paramsFile[MAX_BUFFER];
+		char* tmp;
+        char line[1024];
 		int i, j;
 
-        cout << "Init problem 0";
+		// Init high season factors for low, medium and high seasons
+		pbm._highSeasonFactor = new float [4];
+		pbm._highSeasonFactor[0] = 1.0f;
+		pbm._highSeasonFactor[1] = 1.1f;
+		pbm._highSeasonFactor[2] = 1.3f;
+		pbm._highSeasonFactor[3] = 1.3f;
 
-		// Inicializo tasa por temporada baja, media y alta
-		pbm._tasa_temporada = new float [4];
-		pbm._tasa_temporada[0] = 1.0f;
-		pbm._tasa_temporada[1] = 1.1f;
-		pbm._tasa_temporada[2] = 1.3f;
-		pbm._tasa_temporada[3] = 1.3f;
+		strcpy(paramsFile, "files.txt");
 
-		cout << "Init problem 1";
+        // Open a stream to the file that contains the matrix and seasons information
+        FILE* fileWithParamsFilesURIs = fopen(paramsFile, "r");
 
-		pbm._dimension = 4; // Hardcoded para ej1
-		pbm._maxPais = 5;
+        // Get first line:
+        fgets(line, 1024, fileWithParamsFilesURIs);
+        // Get URI of file containing ticket costs matrix
+        strcpy(pbm._matrixFileURI, line);
+        pbm._matrixFileURI[strlen(pbm._matrixFileURI) - 1] = '\0';
 
-        //Pido memoria para almacenar los precios de los viajes
-		pbm._precio_viaje = new int* [pbm._maxPais];
-		for (i = 0; i < pbm._maxPais; i++) {
-		    pbm._precio_viaje[i] = new int [pbm._maxPais];
+        // Get second line:
+        fgets(line, 1024, fileWithParamsFilesURIs);
+        // Get URI of file containing ticket season factors
+        strcpy(pbm._seasonFactorsFileURI, line);
+        pbm._seasonFactorsFileURI[strlen(pbm._seasonFactorsFileURI) - 1] = '\0';
+
+        // Close file!
+        fclose(fileWithParamsFilesURIs);
+
+        // LOAD SEASON LIMITS
+        // Open season limits file
+        FILE* seasonLimitsFileStream = fopen(pbm._seasonFactorsFileURI, "r");
+
+        for (int season = 0; (season <= 2 && fgets(line, 1024, seasonLimitsFileStream)); season++) {
+
+            // Get inf limit for the current season
+            tmp = strdup(line);
+            const char * infLimit = pbm.getfieldCSV(tmp, 1);
+            pbm._seasonLimits[season * 2] = atoi(infLimit);
+
+            // Get sup limit for the current season
+            tmp = strdup(line);
+            const char * supLimit = pbm.getfieldCSV(tmp, 2);
+            pbm._seasonLimits[season * 2 + 1] = atoi(supLimit);
+
+            // Free memory
+            free(tmp);
+        }
+
+        // Calculate dimension based on season limits
+		pbm._dimension = pbm._seasonLimits[5] / 5;
+		pbm._countryCount = pbm._dimension + 1;
+
+        // LOAD TICKETS PRICE MATRIX
+        FILE* ticketMatrixFileStream = fopen(pbm._matrixFileURI, "r");
+        // Request memory to store ticket price matrix
+		pbm._ticketPrice = new int* [pbm._countryCount];
+		for (i = 0; i < pbm._countryCount; i++) {
+		    pbm._ticketPrice[i] = new int [pbm._countryCount];
 		}
 
-        //Cargo el archivo con los precios de los viajes
-	    FILE* stream = fopen("input.txt", "r");
+		for (i = 0; (i < pbm._countryCount && fgets(line, 1024, ticketMatrixFileStream)); i++){
+            for (j = 0; j < pbm._countryCount; j++) {
 
-        char* tmp;
-        char line[1024];
-		for (i = 0; (i < pbm._maxPais && fgets(line, 1024, stream)); i++){
-            for (j = 0; j < pbm._maxPais; j++) {
+                // Get element i,j from matrix
                 tmp = strdup(line);
-                const char * precio = pbm.getfield(tmp, j + 1);
-                pbm._precio_viaje[i][j] = atoi(precio);
+                const char * price = pbm.getfield(tmp, j + 1);
+                pbm._ticketPrice[i][j] = atoi(price);
+
+                // Free memory
                 free(tmp);
             }
         }
@@ -81,8 +130,7 @@ skeleton newGA
         int item_int=atoi(item);
         free(tmp);
     */
-    const char* Problem::getfield(char* line, int num)
-    {
+    const char* Problem::getfield(char* line, int num){
         const char* tok;
         for (tok = strtok(line, " \t"); tok && *tok; tok = strtok(NULL, " \t\n")){
             if (!--num){
@@ -92,16 +140,29 @@ skeleton newGA
         return NULL;
     }
 
-    int Problem::getMaxPais() const{
-        return _maxPais;
+    // Function to read CSV files
+    const char* Problem::getfieldCSV(char* line, int num){
+        const char* tok;
+        for (tok = strtok(line, ",");
+                tok && *tok;
+                tok = strtok(NULL, ",\n"))
+        {
+            if (!--num)
+                return tok;
+        }
+        return NULL;
     }
 
-    int ** Problem::getPrecioViajes() const{
-        return _precio_viaje;
+    int Problem::getCountryCount() const{
+        return _countryCount;
     }
 
-    float * Problem::getTasaTemporadas() const{
-        return _tasa_temporada;
+    int ** Problem::getTicketPrice() const{
+        return _ticketPrice;
+    }
+
+    float * Problem::getHighSeasonFactors() const{
+        return _highSeasonFactor;
     }
 
 	bool Problem::operator== (const Problem& pbm) const
@@ -127,12 +188,12 @@ skeleton newGA
 	}
 
 	Problem::~Problem(){
-	    //Libero la memoria pedida para almacenar los precios de los viajes
-        for (int i=0; i < _maxPais; i++) {
-            delete[] _precio_viaje[i];
+	    // Free memory used for storing the ticket prices
+        for (int i=0; i < _countryCount; i++) {
+            delete[] _ticketPrice[i];
         }
-        delete[] _precio_viaje;
-        delete[] _tasa_temporada;
+        delete[] _ticketPrice;
+        delete[] _highSeasonFactor;
 	}
 
 	// Solution --------------------------------------------------------------
@@ -213,10 +274,10 @@ skeleton newGA
 		for (int i=0; i < pbm().dimension(); i++){
 		    toCity = _var[i];
 
-            viajeFitness = (toCity == fromCity) ? 9999 : pbm().getPrecioViajes()[fromCity][toCity];
+            viajeFitness = (toCity == fromCity) ? 9999 : pbm().getTicketPrice()[fromCity][toCity];
 
 		    // Acumulo fitness
-            fitness += viajeFitness * pbm().getTasaTemporadas()[i];
+            fitness += viajeFitness * pbm().getHighSeasonFactors()[i];
 
             // La ciudad fromCity de la proxima iteracion es la toCity de la actual iteracion
             fromCity = toCity;
