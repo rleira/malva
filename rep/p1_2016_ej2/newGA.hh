@@ -227,7 +227,7 @@ skeleton newGA
 		~StopCondition_1();
 
     private:
-        int _mejor_precio_intinerario;
+        int _bestTripCost;
   };
 // SetUpParams -------------------------------------------------------------------------------
 

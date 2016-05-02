@@ -602,20 +602,21 @@ skeleton newGA
 
 // StopCondition_1 -------------------------------------------------------------------------------------
 
-	StopCondition_1::StopCondition_1():StopCondition(),_mejor_precio_intinerario(2147483646)
+	StopCondition_1::StopCondition_1():StopCondition(),_bestTripCost(2147483646)
 	{}
 
 	bool StopCondition_1::EvaluateCondition(const Problem& pbm,const Solver& solver,const SetUpParams& setup)
 	{
-	    int nuevo_mejor_precio_intinerario = solver.best_cost_trial();
-	    if (nuevo_mejor_precio_intinerario < _mejor_precio_intinerario) {
-	        _mejor_precio_intinerario = nuevo_mejor_precio_intinerario;
+	    int newBestTripCost = solver.best_cost_trial();
+	    if (newBestTripCost < _bestTripCost) {
+	        _bestTripCost = newBestTripCost;
             FILE * pFile;
 			pFile = fopen ("output_intinerario.csv", "w");
+			fprintf (pFile, "%i", 0);
 			for (int i = 0; i < pbm.dimension(); i++){
-				fprintf (pFile, "Desde %i -> hasta: %i\n", i, solver.best_solution_trial().var(i));
+				fprintf (pFile, " %i", solver.best_solution_trial().var(i));
 			}
-			fprintf (pFile, "Suma total intinerario, %d\n", _mejor_precio_intinerario);
+//			fprintf (pFile, "\n", _bestTripCost);
 			fclose (pFile);
 	    }
 		return false;
