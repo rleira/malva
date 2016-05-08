@@ -199,8 +199,10 @@ skeleton newGA
 
 	void Solution::initialize()
 	{
-		for (int i = 0; i < _pbm.dimension(); i++) {
-            _var[i] = i + 1;
+	    int dimension = _pbm.dimension();
+	    int inicio = rand_int(0, dimension - 1);
+		for (int i = 0; i < dimension; i++) {
+            _var[i] = ((inicio + i) % dimension) + 1;
 		}
 	}
 
@@ -216,10 +218,18 @@ skeleton newGA
             viajeFitness = (toCity == fromCity) ? 9999 : pbm().getPrecioViajes()[fromCity][toCity];
 
 		    // Acumulo fitness
-            fitness += viajeFitness * pbm().getTasaTemporadas()[i];
+            fitness += roundf(viajeFitness * pbm().getTasaTemporadas()[i]);
 
             // La ciudad fromCity de la proxima iteracion es la toCity de la actual iteracion
             fromCity = toCity;
+		}
+
+		for (int i = 0; i < pbm().dimension(); i++) {
+		    for (int j = i + 1; j < pbm().dimension(); j++) {
+		        if (_var[i] == _var[j]) {
+		            fitness += 99999;
+		        }
+		    }
 		}
 
 		return fitness;
