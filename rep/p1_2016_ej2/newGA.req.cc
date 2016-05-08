@@ -611,7 +611,7 @@ skeleton newGA
 	    if (newBestTripCost < _bestTripCost) {
 	        _bestTripCost = newBestTripCost;
             FILE * pFile;
-			pFile = fopen ("output_intinerario.csv", "w");
+			pFile = fopen ("solucion.out", "w");
 			fprintf (pFile, "%i", 0);
 			for (int i = 0; i < pbm.dimension(); i++){
 				fprintf (pFile, " %i", solver.best_solution_trial().var(i));
