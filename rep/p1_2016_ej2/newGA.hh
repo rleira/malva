@@ -175,17 +175,21 @@ skeleton newGA
   requires class Crossover: public Intra_Operator
   {
 	public:
-		Crossover();
-		virtual ~Crossover();
+        Crossover();
+        virtual ~Crossover();
 
-		friend ostream& operator << (ostream& os, const Crossover&  cross);
+        friend ostream& operator << (ostream& os, const Crossover&  cross);
 
-		void cross(Solution &sol1,Solution &sol2) const;
-		virtual void execute(Rarray<Solution*>& sols) const;
-		virtual void setup(char line[MAX_BUFFER]);
+        void cross(Solution &sol1,Solution &sol2) const;
+        virtual void execute(Rarray<Solution*>& sols) const;
+        virtual void setup(char line[MAX_BUFFER]);
 
-		virtual void RefreshState(const StateCenter& _sc) const;
-		virtual void UpdateFromState(const StateCenter& _sc);
+        virtual void RefreshState(const StateCenter& _sc) const;
+        virtual void UpdateFromState(const StateCenter& _sc);
+
+    private:
+        int newValue(const int oldValue,const int l1,const int l2, Rarray<int> & s1, Rarray<int> & s2) const;
+        void complete(Solution &s) const;
   };
 
 // Mutation ----------------------------------------------------------------------------------

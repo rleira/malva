@@ -453,93 +453,141 @@ skeleton newGA
 
 //  Crossover:Intra_operator -------------------------------------------------------------
 
-	Crossover::Crossover():Intra_Operator(0)
-	{
-		probability = new float[1];
-	}
 
-	void Crossover::cross(Solution& sol1,Solution& sol2) const
-	{
-	    // We use Partially Mapped Crossover (PMX)
-        int i = 0;
-        int j = 0;
-        int swapIndex;
-        Rarray<int> aux(sol1.pbm().dimension());
-        aux = sol2.array_var();
+    Crossover::Crossover():Intra_Operator(0)
+    {
+        probability = new float[1];
+    }
 
-        int limit = rand_int(0, sol1.pbm().dimension() - 1);
-        int limit2 = rand_int(0, sol1.pbm().dimension() - 1);
+    // PMX : Partially-Mapped Crossover
+    void Crossover::cross(Solution& sol1,Solution& sol2) const // dadas dos soluciones de la poblacion, las cruza
+    {
+        int i,j;
 
-        if (limit != limit2) {
-            // Make limit < limit2 to ease operations
-            if (limit > limit2) {
-                swapIndex = limit;
-                limit = limit2;
-                limit2 = swapIndex;
-            }
+        // Copy old solutions
+        Rarray<int> aux1(sol1.pbm().dimension());
+        aux1=sol1.array_var();
+        Rarray<int> aux2(sol2.pbm().dimension());
+        aux2=sol2.array_var();
 
-            // Exchange middle!
-            for (i = limit; i <= limit2; i++){
-                sol2.var(i) = sol1.var(i);
-                sol1.var(i) = aux[i];
-            }
+        int limit2=rand_int(1,sol1.pbm().dimension()-1);
+        int limit1=rand_int(0,limit2-1);
 
-            // Fix permutation using sol1 and sol2 mapping
-            for (i = 0; i < sol1.pbm().dimension(); i++){
-                if ((i < limit) || (limit2 < i)) {
-                    // Fix sol1
-                    for (j = limit; j <= limit2; j++) {
-                        if (sol1.var(i) == sol1.var(j)) {
-                            sol1.var(i) = sol2.var(j);
-                        }
-                    }
-                    // Fix sol2
-                    for (j = limit; j <= limit2; j++) {
-                        if (sol2.var(i) == sol2.var(j)) {
-                            sol2.var(i) = sol1.var(j);
-                        }
-                    }
-                }
-            }
+        for (i = limit1; i < limit2; i++)
+        {
+            sol2.var(i) = aux1[i];
+            sol1.var(i) = aux2[i];
         }
-	}
 
-	void Crossover::execute(Rarray<Solution*>& sols) const
-	{
-		for (int i=0;i+1<sols.size();i=i+2)
-		 	if (rand01()<=probability[0]) cross(*sols[i],*sols[i+1]);
-	}
+        for (i = 0; i < limit1; i++)
+        {
+            sol1.var(i) = newValue(aux1[i],limit1,limit2,aux1,aux2);
+            sol2.var(i) = newValue(aux2[i],limit1,limit2,aux2,aux1);
+        }
 
-	ostream& operator<< (ostream& os, const Crossover&  cross)
-	{
-		 os << "Crossover." << " Probability: "
-                    << cross.probability[0]
-		    << endl;
-		 return os;
-	}
+        for (i = limit2; i < sol1.pbm().dimension(); i++)
+        {
+            sol1.var(i) = newValue(aux1[i],limit1,limit2,aux1,aux2);
+            sol2.var(i) = newValue(aux2[i],limit1,limit2,aux2,aux1);
+        }
 
-	void Crossover::RefreshState(const StateCenter& _sc) const
-	{
-		_sc.set_contents_state_variable("_crossover_probability",(char *)probability,1,sizeof(float));
-	}
+        complete(sol1);
+        complete(sol2);
+    }
 
-	void Crossover::UpdateFromState(const StateCenter& _sc)
-	{
-		 unsigned long nbytes,length;
-		 _sc.get_contents_state_variable("_crossover_probability",(char *)probability,nbytes,length);
-	}
+    // Auxiliar function for PMX
+    int Crossover::newValue(const int oldValue,const int l1,const int l2, Rarray<int> & s1, Rarray<int> & s2) const
+    {
+        bool fin = false;
+        int nv = oldValue;
+        int n = s1.size();
+        bool *examinado = new bool[n];
 
-	void Crossover::setup(char line[MAX_BUFFER])
-	{
-		int op;
-		sscanf(line," %d %f ",&op,&probability[0]);
-		assert(probability[0]>=0);
-	}
+        for(int i = 0; i < n; i++) examinado[i] = false;
 
-	Crossover::~Crossover()
-	{
-		delete [] probability;
-	}
+        while (!fin)
+        {
+            fin = true;
+            for(int i = l1; i < l2; i++)
+                if(nv == s2[i])
+                {
+                    if(!examinado[i])
+                    {
+                            nv = s1[i];
+                        examinado[i] = true;
+                            fin = false;
+                    }
+                    else	nv = -1;
+                        break;
+                }
+        }
+
+        delete [] examinado;
+
+        return nv;
+    }
+
+    void Crossover::complete(Solution& s) const
+    {
+        int num = 0;
+        int n = s.pbm().dimension();
+        int j,k;
+        bool *escogido = new bool[n];
+
+        for(int i = 0; i < n; i++) escogido[i] = false;
+
+        for(int i = 0; i < n; i++)
+        {
+            if(s.var(i) != -1) escogido[s.var(i)-1] = true;
+            else num++;
+        }
+
+        j =  k = 0;
+        for(int i = 0; i < num; i++)
+        {
+            while((j < n) && (s.var(j) != -1)) j++;
+            while((k < n) && escogido[k]) k++;
+
+            s.var(j) = k+1;
+        }
+
+        delete [] escogido;
+    }
+
+    void Crossover::execute(Rarray<Solution*>& sols) const
+    {
+        for (int i=0;i+1<sols.size();i=i+2)
+            if (rand01()<=probability[0]) cross(*sols[i],*sols[i+1]);
+    }
+
+    ostream& operator<< (ostream& os, const Crossover&  cross)
+    {
+         os << "Crossover_PMX (Version 1)." << " Probability: " << cross.probability[0];
+         return os;
+    }
+
+    void Crossover::RefreshState(const StateCenter& _sc) const
+    {
+         _sc.set_contents_state_variable("_crossover_probability",(char *)probability,1,sizeof(float));
+    }
+
+    void Crossover::UpdateFromState(const StateCenter& _sc)
+    {
+         unsigned long nbytes,length;
+         _sc.get_contents_state_variable("_crossover_probability",(char *)probability,nbytes,length);
+    }
+
+    void Crossover::setup(char line[MAX_BUFFER])
+    {
+        int op;
+        sscanf(line," %d %f ",&op,&probability[0]);
+        assert(probability[0]>=0);
+    }
+
+    Crossover::~Crossover()
+    {
+        delete [] probability;
+    }
 
 	//  Mutation: Sub_operator -------------------------------------------------------------
 
